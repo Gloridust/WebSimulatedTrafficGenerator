@@ -161,7 +161,7 @@ def visit_once(url, pbar, ua, counter, max_retries=3):
             scroll_page(driver)
             
             # 使用异步等待模拟阅读时间
-            reading_time = random.uniform(5, 15)  # 5-15秒的阅读时间
+            reading_time = random.uniform(1, 3)
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
             loop.run_until_complete(simulate_reading(reading_time))
