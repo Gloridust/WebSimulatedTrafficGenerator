@@ -60,6 +60,7 @@ def create_driver(user_agent):
     chrome_options.add_argument('--disable-gpu')
     chrome_options.add_argument('--no-sandbox')
     chrome_options.add_argument('--ignore-certificate-errors')
+    chrome_options.add_argument('--ignore-ssl-errors')
     chrome_options.add_argument('--disable-web-security')
     
     # 缓存和性能优化配置
@@ -80,7 +81,6 @@ def create_driver(user_agent):
     
     # 内存优化
     chrome_options.add_argument('--js-flags=--expose-gc')
-    chrome_options.add_argument('--single-process')
     chrome_options.add_argument('--no-zygote')
     chrome_options.add_argument('--no-first-run')
     
@@ -146,14 +146,14 @@ def visit_once(url, pbar, ua, counter, max_retries=3):
             random_ua = ua.random
             driver = create_driver(random_ua)
             
-            driver.set_page_load_timeout(20)  # 略微增加超时时间
-            driver.set_script_timeout(20)
+            driver.set_page_load_timeout(30)  # 增加超时时间
+            driver.set_script_timeout(30)
             
             start_time = time.time()
             driver.get(url)
             
             # 等待页面加载完成
-            WebDriverWait(driver, 15).until(
+            WebDriverWait(driver, 20).until(
                 lambda d: d.execute_script('return document.readyState') == 'complete'
             )
             
@@ -178,12 +178,24 @@ def visit_once(url, pbar, ua, counter, max_retries=3):
             break
             
         except Exception as e:
-            if retry == max_retries - 1:
+            error_msg = str(e)
+            if retry < max_retries - 1:
+                # 如果是SSL错误或连接错误，等待更长时间再重试
+                if "SSL" in error_msg or "handshake" in error_msg or "connection" in error_msg:
+                    wait_time = random.uniform(1, 3) * (retry + 1)
+                    pbar.write(f'SSL/连接错误，等待 {wait_time:.1f} 秒后重试 ({retry + 1}/{max_retries})')
+                    time.sleep(wait_time)
+                else:
+                    pbar.write(f'访问失败，准备重试 ({retry + 1}/{max_retries}): {error_msg}')
+            else:
                 counter.increment_fail()
-                pbar.write(f'访问失败 ({retry + 1}/{max_retries}): {str(e)}')
+                pbar.write(f'访问失败 (已达最大重试次数): {error_msg}')
         finally:
             if driver:
-                driver.quit()
+                try:
+                    driver.quit()
+                except:
+                    pass  # 忽略关闭driver时的错误
 
 def visit_url(url, times, max_workers=5):
     """多线程访问指定URL指定次数"""
@@ -209,7 +221,38 @@ def visit_url(url, times, max_workers=5):
 
 def main():
     print("欢迎使用网页访问量刷新工具（多线程版）")
+    
+    # 检查是否安装了Chrome浏览器
+    try:
+        # 尝试创建一个临时driver来验证Chrome是否可用
+        options = Options()
+        options.add_argument('--headless')
+        temp_driver = webdriver.Chrome(options=options)
+        temp_driver.quit()
+        print("✓ Chrome浏览器检测正常")
+    except Exception as e:
+        print("× Chrome浏览器检测失败，请确保已安装最新版Chrome浏览器")
+        print(f"错误信息: {str(e)}")
+        print("提示: 如果您确认已安装Chrome，可能需要下载匹配版本的ChromeDriver")
+        return
+    
     url = input("请输入要访问的网址: ")
+    
+    # 验证URL格式
+    if not url.startswith(('http://', 'https://')):
+        url = 'https://' + url
+        print(f"已自动添加https前缀: {url}")
+    
+    # 测试URL是否可访问
+    try:
+        print(f"正在测试URL可访问性...")
+        response = requests.get(url, timeout=10)
+        if response.status_code == 200:
+            print(f"✓ URL测试成功，状态码: {response.status_code}")
+        else:
+            print(f"! URL返回非200状态码: {response.status_code}，但仍将继续")
+    except Exception as e:
+        print(f"! URL测试失败: {str(e)}，但仍将继续")
     
     while True:
         try:
@@ -230,9 +273,18 @@ def main():
             print("请输入有效的数字")
     
     print(f"\n开始访问 {url}...")
-    print(f"使用 {threads} 个并行线程")
-    visit_url(url, times, max_workers=threads)
-    print("\n访问完成！")
+    print(f"使用 {threads} 个并行线程，计划访问 {times} 次")
+    print("提示: 如果出现SSL错误，程序会自动重试")
+    
+    try:
+        visit_url(url, times, max_workers=threads)
+        print("\n✓ 访问完成！")
+    except KeyboardInterrupt:
+        print("\n! 程序被用户中断")
+    except Exception as e:
+        print(f"\n× 程序执行出错: {str(e)}")
+    finally:
+        print("程序已退出")
 
 if __name__ == "__main__":
     main()
