@@ -500,18 +500,19 @@ def main():
         print(f"! URL测试失败: {e}，但仍将继续")
 
     # 选择模式
-    mode_in = input("选择模式: [1] HTTP极速(默认) [2] 浏览器(Selenium) [3] 浏览器(Playwright 无Chromedriver): ").strip()
-    if mode_in in ("", "1"):
+    mode_in = input("选择模式: [1] HTTP极速 [2] 浏览器(Selenium) [3] 浏览器(Playwright 无Chromedriver，默认): ").strip()
+    if mode_in == "1":
         mode = "http"
     elif mode_in == "2":
         mode = "selenium"
     else:
-        mode = "playwright"
+        mode = "playwright"  # 默认为 playwright
 
     # 次数与并发
     while True:
         try:
-            times = int(input("请输入要访问的次数: "))
+            times_input = input("请输入要访问的次数 (默认2000): ").strip()
+            times = int(times_input) if times_input else 2000
             if times > 0:
                 break
             print("请输入大于0的数字")
@@ -521,7 +522,8 @@ def main():
     if mode == "http":
         while True:
             try:
-                concurrency = int(input("请输入并发数(建议10-200): "))
+                concurrency_input = input("请输入并发数 (默认1，建议10-200): ").strip()
+                concurrency = int(concurrency_input) if concurrency_input else 1
                 if 1 <= concurrency <= 1000:
                     break
                 print("请输入1-1000之间的数字")
@@ -574,7 +576,8 @@ def main():
         # JS 停留时间设置
         while True:
             try:
-                dwell_ms = int(input("JS停留毫秒(建议800-3000): "))
+                dwell_input = input("JS停留毫秒 (默认800，建议800-3000): ").strip()
+                dwell_ms = int(dwell_input) if dwell_input else 800
                 if 50 <= dwell_ms <= 10000:
                     break
                 print("请输入50-10000之间的数字")
@@ -600,7 +603,8 @@ def main():
 
         while True:
             try:
-                concurrency = int(input("请输入并发数(建议1-20): "))
+                concurrency_input = input("请输入并发数 (默认1，建议1-20): ").strip()
+                concurrency = int(concurrency_input) if concurrency_input else 1
                 if 1 <= concurrency <= 50:
                     break
                 print("请输入1-50之间的数字")
@@ -614,7 +618,8 @@ def main():
 
         while True:
             try:
-                dwell_ms = int(input("JS停留毫秒(建议800-3000): "))
+                dwell_input = input("JS停留毫秒 (默认800，建议800-3000): ").strip()
+                dwell_ms = int(dwell_input) if dwell_input else 800
                 if 200 <= dwell_ms <= 10000:
                     break
                 print("请输入200-10000之间的数字")
